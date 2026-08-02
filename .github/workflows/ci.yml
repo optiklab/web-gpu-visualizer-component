@@ -39,5 +39,8 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Test installed package
+        run: npm run test:package
+
       - name: Audit package contents
         run: npm run pack:check

@@ -134,10 +134,38 @@ Vite may select another port when `5173` is already occupied. In that case, use 
 npm run lint
 npm test
 npm run build
+npm run test:package
 npm run pack:check
 ```
 
 The repository contains model assets for its local demo. Vite excludes the public demo directory from the npm library build, so those aircraft and runway assets are not included in the published package tarball. Consumers are responsible for ensuring they have the right to distribute the models and textures they provide.
+
+### Publish to npm
+
+The package is published publicly under the `optiklab` npm scope. Sign in and confirm the active account without sharing an access token:
+
+```bash
+npm login
+npm whoami
+```
+
+`npm whoami` must print `optiklab`. Review the files and metadata that npm will receive, then publish:
+
+```bash
+npm run pack:check
+npm publish --access public
+```
+
+`prepublishOnly` automatically runs lint, all tests, the production build, and an isolated installation test before npm accepts the package. If the npm account requires two-factor authentication, enter the one-time code directly at npm's prompt.
+
+Verify the published release:
+
+```bash
+npm view @optiklab/web-gpu-visualizer-component version
+npm install @optiklab/web-gpu-visualizer-component
+```
+
+For later releases, update and commit the version first, for example with `npm version patch`, then push the commit and tag before running `npm publish --access public`.
 
 ## License
 
