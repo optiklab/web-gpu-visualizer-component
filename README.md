@@ -124,6 +124,8 @@ Open [http://localhost:5173/?webgpu-check=1](http://localhost:5173/?webgpu-check
 
 Vite may select another port when `5173` is already occupied. In that case, use the local URL printed by `npm run dev` and append `?webgpu-check=1`.
 
+![1](https://github.com/optiklab/web-gpu-visualizer-component/blob/main/docs/webgpu-visualizer-demo.jpg)
+
 ### Validate the package
 
 ```bash
