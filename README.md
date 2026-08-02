@@ -6,6 +6,8 @@
 
 A dependency-light OBJ visualizer that prefers WebGPU and automatically falls back to a Canvas 2D software renderer. It provides React bindings and a framework-independent controller, with wireframe, filled, and textured rendering.
 
+Component is built from the the [previously successful experimental project](https://github.com/optiklab/web-gpu-visualizer) converting from C++ SDL functionality to TypeScript for renderring using Web GPU  and CPU (as a fallback).
+
 ## Install
 
 ```bash
