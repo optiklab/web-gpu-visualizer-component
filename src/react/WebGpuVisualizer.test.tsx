@@ -31,6 +31,8 @@ vi.mock('../core/Visualizer', () => ({
 
 import { WebGpuVisualizer } from './WebGpuVisualizer';
 
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
 const scene = {
   models: [{ objText: 'v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3' }],
 };

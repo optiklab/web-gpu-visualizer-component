@@ -8,6 +8,7 @@ if (!npmCli) throw new Error('npm_execpath is required to verify the package.');
 const npm = process.execPath;
 const npmArgs = [npmCli];
 const workspace = mkdtempSync(join(tmpdir(), 'web-gpu-visualizer-package-'));
+const sourcePackage = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8'));
 
 const run = (command, args, options = {}) => execFileSync(command, args, {
   cwd: workspace,
@@ -55,7 +56,7 @@ try {
     join(workspace, 'node_modules', '@optiklab', 'web-gpu-visualizer-component', 'package.json'),
     'utf8',
   ));
-  if (installedPackage.version !== '0.1.0') {
+  if (installedPackage.version !== sourcePackage.version) {
     throw new Error(`Unexpected installed version: ${installedPackage.version}`);
   }
 
