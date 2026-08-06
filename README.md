@@ -8,6 +8,10 @@ A dependency-light OBJ visualizer that prefers WebGPU and automatically falls ba
 
 Component is built from the the [previously successful experimental project](https://github.com/optiklab/web-gpu-visualizer) converting from C++ SDL functionality to TypeScript for renderring using Web GPU  and CPU (as a fallback).
 
+## Production demo
+
+See [demo on TacTicA](https://tactica.xyz/3d-obj-visualizer).
+
 ## Install
 
 ```bash
