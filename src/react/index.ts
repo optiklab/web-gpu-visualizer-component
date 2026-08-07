@@ -7,6 +7,7 @@ export {
 } from './WebGpuVisualizer';
 export type {
   ModelSource,
+  ModelTransform,
   RendererKind,
   RendererPreference,
   RenderMode,

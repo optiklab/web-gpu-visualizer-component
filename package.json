@@ -1,6 +1,6 @@
 {
   "name": "@optiklab/web-gpu-visualizer-component",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "WebGPU-first 3D OBJ visualizer with a Canvas CPU fallback and React bindings.",
   "type": "module",
   "license": "Apache-2.0",

@@ -11,11 +11,13 @@ import type {
   RendererKind,
   RendererPreference,
   RenderMode,
+  ModelTransform,
   SceneDefinition,
 } from '../core/types';
 
 export interface WebGpuVisualizerHandle {
   loadScene(scene: SceneDefinition): Promise<void>;
+  setModelTransform(id: string, transform: ModelTransform): boolean;
   resetCamera(): void;
   setRenderMode(mode: RenderMode): void;
   getRendererKind(): RendererKind | null;
@@ -74,6 +76,7 @@ export const WebGpuVisualizer = forwardRef<WebGpuVisualizerHandle, WebGpuVisuali
         if (!controllerRef.current) return Promise.reject(new Error('Visualizer is not ready.'));
         return controllerRef.current.loadScene(nextScene);
       },
+      setModelTransform: (id, transform) => controllerRef.current?.setModelTransform(id, transform) ?? false,
       resetCamera: () => controllerRef.current?.resetCamera(),
       setRenderMode: mode => controllerRef.current?.setRenderMode(mode),
       getRendererKind: () => controllerRef.current?.getRendererKind() ?? null,

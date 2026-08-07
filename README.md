@@ -67,7 +67,29 @@ Each model accepts either `objUrl` or `objText`, plus an optional `textureUrl`, 
 | `onFallback` | - | Receives the WebGPU error that caused fallback |
 | `onError` | - | Receives an unrecoverable loading or rendering error |
 
-A forwarded ref exposes `loadScene`, `resetCamera`, `setRenderMode`, and `getRendererKind`.
+A forwarded ref exposes `loadScene`, `setModelTransform`, `resetCamera`, `setRenderMode`, and `getRendererKind`.
+
+### Model transforms and animation
+
+Use `setModelTransform` for frequent translation, rotation, or scale updates. It updates the loaded model in place without reparsing OBJ geometry, decoding textures, or recreating renderer resources.
+
+```tsx
+const visualizerRef = useRef<WebGpuVisualizerHandle>(null);
+
+useEffect(() => {
+  let frame = 0;
+  const animate = (timestamp: number) => {
+    visualizerRef.current?.setModelTransform('product', {
+      rotation: { x: 0, y: timestamp / 1000, z: 0 },
+    });
+    frame = requestAnimationFrame(animate);
+  };
+  frame = requestAnimationFrame(animate);
+  return () => cancelAnimationFrame(frame);
+}, []);
+```
+
+Model IDs must be unique within a scene. The method returns `false` when no loaded model has the requested ID. Use `loadScene` only when geometry or textures change.
 
 ## Framework-Independent API
 

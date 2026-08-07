@@ -1,4 +1,7 @@
+// @vitest-environment happy-dom
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { LoadedModel } from './types';
 
 const { backendState, MockBackend } = vi.hoisted(() => {
   const state = {
@@ -7,6 +10,7 @@ const { backendState, MockBackend } = vi.hoisted(() => {
     cpuInitializeCount: 0,
     cpuDisposeCount: 0,
     deviceLostCallback: null as ((error: Error) => void) | null,
+    sceneModels: [] as LoadedModel[],
   };
 
   class Backend {
@@ -23,7 +27,9 @@ const { backendState, MockBackend } = vi.hoisted(() => {
       if (this.kind === 'webcpu') state.cpuInitializeCount++;
     }
 
-    public async setScene(): Promise<void> {}
+    public async setScene(models: LoadedModel[]): Promise<void> {
+      state.sceneModels = models;
+    }
     public setRenderMode(): void {}
     public resize(): void {}
     public render() {
@@ -87,6 +93,7 @@ describe('WebGpuVisualizer backend lifecycle', () => {
     backendState.cpuInitializeCount = 0;
     backendState.cpuDisposeCount = 0;
     backendState.deviceLostCallback = null;
+    backendState.sceneModels = [];
     vi.stubGlobal('ResizeObserver', ResizeObserverStub);
     vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1));
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
@@ -140,5 +147,28 @@ describe('WebGpuVisualizer backend lifecycle', () => {
 
     expect(cancelAnimationFrame).toHaveBeenCalledWith(1);
     expect(backendState.gpuDisposeCount).toBe(1);
+  });
+
+  it('updates a loaded model transform without reloading its scene', async () => {
+    const visualizer = createVisualizer({
+      scene: {
+        models: [{
+          id: 'aircraft',
+          objText: 'v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3',
+        }],
+      },
+    });
+    await visualizer.initialize();
+
+    expect(visualizer.setModelTransform('aircraft', {
+      translation: { x: 2, y: 3, z: 4 },
+      rotation: { x: 0.1, y: 0.2, z: 0.3 },
+      scale: { x: 2, y: 2, z: 2 },
+    })).toBe(true);
+    expect(backendState.sceneModels[0].mesh.translation).toMatchObject({ x: 2, y: 3, z: 4 });
+    expect(backendState.sceneModels[0].mesh.rotation).toMatchObject({ x: 0.1, y: 0.2, z: 0.3 });
+    expect(backendState.sceneModels[0].mesh.scale).toMatchObject({ x: 2, y: 2, z: 2 });
+    expect(visualizer.setModelTransform('missing', { translation: { x: 0, y: 0, z: 0 } })).toBe(false);
+    visualizer.dispose();
   });
 });

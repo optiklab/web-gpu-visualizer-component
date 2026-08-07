@@ -4,6 +4,7 @@ import { Vec3 } from './math/Vector';
 import { loadSceneDefinition } from './sceneLoader';
 import type {
   LoadedModel,
+  ModelTransform,
   RendererBackend,
   RendererKind,
   RenderMode,
@@ -99,6 +100,30 @@ export class WebGpuVisualizer {
   public setRenderMode(mode: RenderMode): void {
     this.options.renderMode = mode;
     this.backend?.setRenderMode(mode);
+  }
+
+  public setModelTransform(id: string, transform: ModelTransform): boolean {
+    const model = this.sceneModels.find(candidate => candidate.id === id);
+    if (!model) return false;
+
+    if (transform.translation) {
+      model.mesh.translation = new Vec3(
+        transform.translation.x,
+        transform.translation.y,
+        transform.translation.z,
+      );
+    }
+    if (transform.rotation) {
+      model.mesh.rotation = new Vec3(
+        transform.rotation.x,
+        transform.rotation.y,
+        transform.rotation.z,
+      );
+    }
+    if (transform.scale) {
+      model.mesh.scale = new Vec3(transform.scale.x, transform.scale.y, transform.scale.z);
+    }
+    return true;
   }
 
   public resetCamera(): void {
