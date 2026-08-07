@@ -59,6 +59,9 @@ export class WebGpuRenderer {
     // ========================================================================
 
     public sampler: GPUSampler | null = null;   // Texture sampler (filtering, wrapping)
+    private depthTexture: GPUTexture | null = null;
+    private depthTextureWidth = 0;
+    private depthTextureHeight = 0;
 
     // ========================================================================
     // Constructor
@@ -445,6 +448,10 @@ export class WebGpuRenderer {
     }
 
     public dispose() {
+        this.depthTexture?.destroy();
+        this.depthTexture = null;
+        this.depthTextureWidth = 0;
+        this.depthTextureHeight = 0;
         this.device?.destroy();
         this.device = null;
         this.context = null;
@@ -490,15 +497,9 @@ export class WebGpuRenderer {
         const commandEncoder = this.device.createCommandEncoder();
 
         // ====================================================================
-        // Depth Texture (Transient)
+        // Depth Texture
         // ====================================================================
-        // Create a depth buffer for this frame (recreated each frame for simplicity)
-
-        const depthTexture = this.device.createTexture({
-            size: [this.canvas.width, this.canvas.height], // Match canvas size
-            format: 'depth24plus',                          // 24-bit depth format
-            usage: GPUTextureUsage.RENDER_ATTACHMENT,       // Used as render target
-        });
+        const depthTexture = this.getDepthTexture();
 
         // ====================================================================
         // Render Pass Configuration
@@ -564,6 +565,24 @@ export class WebGpuRenderer {
         // Finalize and submit the command buffer to the GPU queue
 
         this.device.queue.submit([commandEncoder.finish()]);
-        depthTexture.destroy();
+    }
+
+    private getDepthTexture(): GPUTexture {
+        if (!this.device) throw new Error('Cannot create a depth texture without a GPU device.');
+        const width = Math.max(1, this.canvas.width);
+        const height = Math.max(1, this.canvas.height);
+        if (this.depthTexture && this.depthTextureWidth === width && this.depthTextureHeight === height) {
+            return this.depthTexture;
+        }
+
+        this.depthTexture?.destroy();
+        this.depthTexture = this.device.createTexture({
+            size: [width, height],
+            format: 'depth24plus',
+            usage: GPUTextureUsage.RENDER_ATTACHMENT,
+        });
+        this.depthTextureWidth = width;
+        this.depthTextureHeight = height;
+        return this.depthTexture;
     }
 }
