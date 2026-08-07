@@ -18,6 +18,7 @@ import type {
 export interface WebGpuVisualizerHandle {
   loadScene(scene: SceneDefinition): Promise<void>;
   setModelTransform(id: string, transform: ModelTransform): boolean;
+  setRenderingPaused(paused: boolean): void;
   resetCamera(): void;
   setRenderMode(mode: RenderMode): void;
   getRendererKind(): RendererKind | null;
@@ -77,6 +78,7 @@ export const WebGpuVisualizer = forwardRef<WebGpuVisualizerHandle, WebGpuVisuali
         return controllerRef.current.loadScene(nextScene);
       },
       setModelTransform: (id, transform) => controllerRef.current?.setModelTransform(id, transform) ?? false,
+      setRenderingPaused: paused => controllerRef.current?.setRenderingPaused(paused),
       resetCamera: () => controllerRef.current?.resetCamera(),
       setRenderMode: mode => controllerRef.current?.setRenderMode(mode),
       getRendererKind: () => controllerRef.current?.getRendererKind() ?? null,

@@ -11,6 +11,7 @@ const { backendState, MockBackend } = vi.hoisted(() => {
     cpuDisposeCount: 0,
     deviceLostCallback: null as ((error: Error) => void) | null,
     sceneModels: [] as LoadedModel[],
+    renderCount: 0,
   };
 
   class Backend {
@@ -33,6 +34,7 @@ const { backendState, MockBackend } = vi.hoisted(() => {
     public setRenderMode(): void {}
     public resize(): void {}
     public render() {
+      state.renderCount++;
       return { renderer: this.kind, modelCount: 0, triangleCount: 0 };
     }
 
@@ -94,6 +96,7 @@ describe('WebGpuVisualizer backend lifecycle', () => {
     backendState.cpuDisposeCount = 0;
     backendState.deviceLostCallback = null;
     backendState.sceneModels = [];
+    backendState.renderCount = 0;
     vi.stubGlobal('ResizeObserver', ResizeObserverStub);
     vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1));
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
@@ -169,6 +172,21 @@ describe('WebGpuVisualizer backend lifecycle', () => {
     expect(backendState.sceneModels[0].mesh.rotation).toMatchObject({ x: 0.1, y: 0.2, z: 0.3 });
     expect(backendState.sceneModels[0].mesh.scale).toMatchObject({ x: 2, y: 2, z: 2 });
     expect(visualizer.setModelTransform('missing', { translation: { x: 0, y: 0, z: 0 } })).toBe(false);
+    visualizer.dispose();
+  });
+
+  it('suspends backend rendering until resumed', async () => {
+    const visualizer = createVisualizer();
+    await visualizer.initialize();
+    const renderFrame = vi.mocked(requestAnimationFrame).mock.calls[0][0];
+
+    visualizer.setRenderingPaused(true);
+    renderFrame(16);
+    expect(backendState.renderCount).toBe(0);
+
+    visualizer.setRenderingPaused(false);
+    renderFrame(32);
+    expect(backendState.renderCount).toBe(1);
     visualizer.dispose();
   });
 });

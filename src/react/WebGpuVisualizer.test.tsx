@@ -9,6 +9,7 @@ const controllerState = vi.hoisted(() => ({
   initializeCount: 0,
   disposeCount: 0,
   setModelTransform: vi.fn(() => true),
+  setRenderingPaused: vi.fn(),
 }));
 
 vi.mock('../core/Visualizer', () => ({
@@ -25,6 +26,9 @@ vi.mock('../core/Visualizer', () => ({
     public async loadScene() {}
     public setModelTransform(id: string, transform: unknown) {
       return controllerState.setModelTransform(id, transform);
+    }
+    public setRenderingPaused(paused: boolean) {
+      controllerState.setRenderingPaused(paused);
     }
     public resetCamera() {}
     public setRenderMode() {}
@@ -47,6 +51,7 @@ describe('React WebGpuVisualizer lifecycle', () => {
     controllerState.initializeCount = 0;
     controllerState.disposeCount = 0;
     controllerState.setModelTransform.mockClear();
+    controllerState.setRenderingPaused.mockClear();
   });
 
   afterEach(() => {
@@ -83,6 +88,22 @@ describe('React WebGpuVisualizer lifecycle', () => {
     const transform = { rotation: { x: 0, y: 1, z: 0 } };
     expect(ref.current?.setModelTransform('aircraft', transform)).toBe(true);
     expect(controllerState.setModelTransform).toHaveBeenCalledWith('aircraft', transform);
+
+    await act(async () => root.unmount());
+  });
+
+  it('forwards rendering suspension through its imperative handle', async () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const ref = createRef<WebGpuVisualizerHandle>();
+
+    await act(async () => {
+      root.render(<WebGpuVisualizer ref={ref} scene={scene} />);
+    });
+
+    ref.current?.setRenderingPaused(true);
+    expect(controllerState.setRenderingPaused).toHaveBeenCalledWith(true);
 
     await act(async () => root.unmount());
   });

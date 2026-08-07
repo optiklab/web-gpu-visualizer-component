@@ -31,6 +31,7 @@ export class WebGpuVisualizer {
   private sceneLoadGeneration = 0;
   private disposed = false;
   private switchingBackend = false;
+  private renderingPaused = false;
 
   constructor(private readonly canvas: HTMLCanvasElement, options: VisualizerOptions = {}) {
     this.options = {
@@ -100,6 +101,11 @@ export class WebGpuVisualizer {
   public setRenderMode(mode: RenderMode): void {
     this.options.renderMode = mode;
     this.backend?.setRenderMode(mode);
+  }
+
+  public setRenderingPaused(paused: boolean): void {
+    this.renderingPaused = paused;
+    if (!paused) this.previousTimestamp = 0;
   }
 
   public setModelTransform(id: string, transform: ModelTransform): boolean {
@@ -243,6 +249,10 @@ export class WebGpuVisualizer {
 
   private readonly renderFrame = (timestamp: number) => {
     if (this.disposed) return;
+    if (this.renderingPaused) {
+      this.animationFrame = requestAnimationFrame(this.renderFrame);
+      return;
+    }
     const deltaSeconds = this.previousTimestamp === 0
       ? 0
       : Math.min((timestamp - this.previousTimestamp) / 1000, 0.1);

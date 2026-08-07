@@ -67,7 +67,7 @@ Each model accepts either `objUrl` or `objText`, plus an optional `textureUrl`, 
 | `onFallback` | - | Receives the WebGPU error that caused fallback |
 | `onError` | - | Receives an unrecoverable loading or rendering error |
 
-A forwarded ref exposes `loadScene`, `setModelTransform`, `resetCamera`, `setRenderMode`, and `getRendererKind`.
+A forwarded ref exposes `loadScene`, `setModelTransform`, `setRenderingPaused`, `resetCamera`, `setRenderMode`, and `getRendererKind`. Use `setRenderingPaused(true)` before browser transitions that temporarily invalidate the canvas surface, then resume after its dimensions stabilize.
 
 ### Model transforms and animation
 
