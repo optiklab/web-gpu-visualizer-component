@@ -70,7 +70,7 @@ export class WebGpuVisualizer {
     await this.activatePreferredBackend();
     if (this.disposed) throw new Error('Visualizer was disposed during initialization.');
 
-    this.animationFrame = requestAnimationFrame(this.renderFrame);
+    if (!this.renderingPaused) this.animationFrame = requestAnimationFrame(this.renderFrame);
     return this.backend!.kind;
   }
 
@@ -104,8 +104,18 @@ export class WebGpuVisualizer {
   }
 
   public setRenderingPaused(paused: boolean): void {
+    if (this.renderingPaused === paused) return;
     this.renderingPaused = paused;
-    if (!paused) this.previousTimestamp = 0;
+    if (paused) {
+      cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = 0;
+      return;
+    }
+
+    this.previousTimestamp = 0;
+    if (!this.disposed && this.backend && this.animationFrame === 0) {
+      this.animationFrame = requestAnimationFrame(this.renderFrame);
+    }
   }
 
   public setModelTransform(id: string, transform: ModelTransform): boolean {
@@ -249,10 +259,8 @@ export class WebGpuVisualizer {
 
   private readonly renderFrame = (timestamp: number) => {
     if (this.disposed) return;
-    if (this.renderingPaused) {
-      this.animationFrame = requestAnimationFrame(this.renderFrame);
-      return;
-    }
+    this.animationFrame = 0;
+    if (this.renderingPaused) return;
     const deltaSeconds = this.previousTimestamp === 0
       ? 0
       : Math.min((timestamp - this.previousTimestamp) / 1000, 0.1);
@@ -269,7 +277,7 @@ export class WebGpuVisualizer {
         this.reportError(renderError);
       }
     }
-    this.animationFrame = requestAnimationFrame(this.renderFrame);
+    if (!this.renderingPaused) this.animationFrame = requestAnimationFrame(this.renderFrame);
   };
 
   private reportError(error: Error): void {

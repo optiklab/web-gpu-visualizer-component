@@ -178,14 +178,15 @@ describe('WebGpuVisualizer backend lifecycle', () => {
   it('suspends backend rendering until resumed', async () => {
     const visualizer = createVisualizer();
     await visualizer.initialize();
-    const renderFrame = vi.mocked(requestAnimationFrame).mock.calls[0][0];
 
     visualizer.setRenderingPaused(true);
-    renderFrame(16);
+    expect(cancelAnimationFrame).toHaveBeenCalledWith(1);
     expect(backendState.renderCount).toBe(0);
 
     visualizer.setRenderingPaused(false);
-    renderFrame(32);
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(2);
+    const resumedFrame = vi.mocked(requestAnimationFrame).mock.calls[1][0];
+    resumedFrame(32);
     expect(backendState.renderCount).toBe(1);
     visualizer.dispose();
   });
