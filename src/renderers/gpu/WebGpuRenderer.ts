@@ -25,9 +25,17 @@ export interface RenderItem {
     mvpMatrix: Mat4;
 }
 
+export function fitTextureDimensions(width: number, height: number, maximum: number) {
+    if (width <= maximum && height <= maximum) return { width, height };
+    if (width >= height) {
+        return { width: maximum, height: Math.max(1, Math.floor(height * maximum / width)) };
+    }
+    return { width: Math.max(1, Math.floor(width * maximum / height)), height: maximum };
+}
+
 /**
  * Renderer Class
- * 
+ *
  * Encapsulates all WebGPU rendering logic including:
  * - GPU device and adapter initialization
  * - Render pipeline creation (shaders, buffers, bind groups)
@@ -230,8 +238,8 @@ export class WebGpuRenderer {
             // Primitive Configuration
             primitive: {
                 topology: 'triangle-list', // Each 3 vertices form a triangle
-                frontFace: 'cw',           // Match C++ winding after framebuffer Y inversion
-                cullMode: 'back',          // Don't draw back-facing triangles (optimization)
+                frontFace: 'cw',
+                cullMode: 'none',          // OBJ exporters do not use one reliable winding order
             },
 
             // Depth/Stencil Configuration (for proper 3D depth sorting)
@@ -260,7 +268,7 @@ export class WebGpuRenderer {
                 entryPoint: 'fs_filled',
                 targets: [{ format: this.format }]
             },
-            primitive: { topology: 'triangle-list', frontFace: 'cw', cullMode: 'back' },
+            primitive: { topology: 'triangle-list', frontFace: 'cw', cullMode: 'none' },
             depthStencil: {
                 depthWriteEnabled: true,
                 depthCompare: 'less',
@@ -326,7 +334,7 @@ export class WebGpuRenderer {
 
     /**
      * Upload mesh vertex data and texture to the GPU.
-     * 
+        *
      * @param vertices - Float32Array of vertex data [x, y, z, u, v, ...]
      * @param textureImage - The texture image (ImageBitmap or HTMLCanvasElement)
      */
@@ -334,6 +342,8 @@ export class WebGpuRenderer {
         // Guard: all required resources must be initialized
         if (!this.device || !this.pipeline || !this.sampler) return null;
         if (vertices.length === 0) throw new Error('Cannot upload an empty mesh.');
+
+        const textureSource = this.fitTextureToDevice(textureImage);
 
         // ====================================================================
         // Vertex Buffer Creation
@@ -386,7 +396,7 @@ export class WebGpuRenderer {
 
         // Create GPU texture with the same dimensions as the source image
         const texture = this.device.createTexture({
-            size: [textureImage.width, textureImage.height], // Width × Height
+            size: [textureSource.width, textureSource.height], // Width × Height
             format: 'rgba8unorm', // 8-bit RGBA normalized format
             usage: GPUTextureUsage.TEXTURE_BINDING |  // Can be bound as texture
                 GPUTextureUsage.COPY_DST |         // Can receive data
@@ -396,9 +406,9 @@ export class WebGpuRenderer {
         // Copy the image data to the GPU texture
         // This uses the browser's built-in image decoding
         this.device.queue.copyExternalImageToTexture(
-            { source: textureImage },                    // Source image
+            { source: textureSource },                   // Source image
             { texture },                                 // Destination texture
-            [textureImage.width, textureImage.height]    // Size to copy
+            [textureSource.width, textureSource.height]  // Size to copy
         );
 
         // ====================================================================
@@ -440,6 +450,26 @@ export class WebGpuRenderer {
         };
     }
 
+    private fitTextureToDevice(textureImage: ImageBitmap | HTMLCanvasElement): ImageBitmap | HTMLCanvasElement {
+        if (!this.device) return textureImage;
+        const dimensions = fitTextureDimensions(
+            textureImage.width,
+            textureImage.height,
+            this.device.limits.maxTextureDimension2D,
+        );
+        if (dimensions.width === textureImage.width && dimensions.height === textureImage.height) {
+            return textureImage;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = dimensions.width;
+        canvas.height = dimensions.height;
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('Could not resize a texture for WebGPU.');
+        context.drawImage(textureImage, 0, 0, dimensions.width, dimensions.height);
+        return canvas;
+    }
+
     public destroyMesh(mesh: GpuMesh) {
         mesh.vertexBuffer.destroy();
         mesh.wireVertexBuffer.destroy();
@@ -467,7 +497,7 @@ export class WebGpuRenderer {
 
     /**
      * Render a single frame.
-     * 
+        *
      * @param items - Mesh resources paired with their transforms
      */
     public render(items: RenderItem[]) {

@@ -91,12 +91,15 @@ export class WebCpuBackend implements RendererBackend {
               color,
             );
           } else if (this.renderMode === 'textured' && mesh.texture) {
+            const texture = face.materialName
+              ? mesh.materialTextures.get(face.materialName) ?? mesh.texture
+              : mesh.texture;
             Rasterizer.drawTexturedTriangle(
               this.display,
               points[0].x, points[0].y, points[0].z, points[0].w, triangle.texcoords[0].x, triangle.texcoords[0].y,
               points[1].x, points[1].y, points[1].z, points[1].w, triangle.texcoords[1].x, triangle.texcoords[1].y,
               points[2].x, points[2].y, points[2].z, points[2].w, triangle.texcoords[2].x, triangle.texcoords[2].y,
-              mesh.texture,
+              texture,
             );
           } else {
             Rasterizer.drawTriangle(

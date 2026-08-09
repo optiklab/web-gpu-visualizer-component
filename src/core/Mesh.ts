@@ -12,6 +12,7 @@ export interface Face {
     c_uv: Vec2; // Texture coordinate for the third vertex // Fixed typo: c_uv
 
     color: number; // 32-bit integer color of the face (ARGB)
+    materialName?: string;
 }
 
 // Class representing a 3D model (mesh)
@@ -19,6 +20,7 @@ export class Mesh {
     public vertices: Vec3[] = []; // List of all unique vertices in object space
     public faces: Face[] = []; // List of all triangle faces connecting those vertices
     public texture: Texture | null = null; // Associated texture, if any
+    public materialTextures: Map<string, Texture> = new Map();
 
     // Transformation properties for this specific mesh instance
     public scale: Vec3 = new Vec3(1, 1, 1); // Scale vector (default: 1,1,1 no scaling)
@@ -42,6 +44,7 @@ export class Mesh {
         this.vertices = [];
         this.faces = [];
         const textureCoordinates: Vec2[] = [];
+        let activeMaterial: string | undefined;
 
         const resolveIndex = (value: string, count: number, label: string): number => {
             const parsed = Number.parseInt(value, 10);
@@ -69,6 +72,8 @@ export class Mesh {
                     throw new Error(`Invalid OBJ texture coordinate: ${line}`);
                 }
                 textureCoordinates.push(new Vec2(coordinates[0], coordinates[1]));
+            } else if (parts[0] === 'usemtl') {
+                activeMaterial = parts.slice(1).join(' ') || undefined;
             } else if (parts[0] === 'f') {
                 if (parts.length < 4) throw new Error(`OBJ face requires at least three vertices: ${line}`);
                 const references = parts.slice(1).map(segment => {
@@ -91,6 +96,7 @@ export class Mesh {
                         b_uv: b.texture,
                         c_uv: c.texture,
                         color: 0xFFFFFFFF,
+                        materialName: activeMaterial,
                     });
                 }
             }

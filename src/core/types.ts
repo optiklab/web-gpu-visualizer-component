@@ -21,6 +21,9 @@ export interface ModelSource extends ModelTransform {
   objUrl?: string;
   objText?: string;
   textureUrl?: string;
+  mtlUrl?: string;
+  mtlText?: string;
+  textureUrls?: Record<string, string>;
 }
 
 export interface SceneDefinition {

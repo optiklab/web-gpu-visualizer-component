@@ -36,6 +36,20 @@ describe('Mesh.parseObj', () => {
     expect(mesh.faces[0]).toMatchObject({ a: 1, b: 2, c: 3 });
   });
 
+  it('preserves usemtl assignments on triangulated faces', () => {
+    const mesh = new Mesh();
+    mesh.parseObj(`
+      v 0 0 0
+      v 1 0 0
+      v 1 1 0
+      v 0 1 0
+      usemtl Painted metal
+      f 1 2 3 4
+    `);
+
+    expect(mesh.faces.map(face => face.materialName)).toEqual(['Painted metal', 'Painted metal']);
+  });
+
   it('rejects out-of-range indices', () => {
     const mesh = new Mesh();
     expect(() => mesh.parseObj('v 0 0 0\nf 1 2 3')).toThrow('Invalid OBJ vertex index');

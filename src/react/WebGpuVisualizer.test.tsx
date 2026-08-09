@@ -10,6 +10,7 @@ const controllerState = vi.hoisted(() => ({
   disposeCount: 0,
   setModelTransform: vi.fn(() => true),
   setRenderingPaused: vi.fn(),
+  loadScene: vi.fn(async () => {}),
 }));
 
 vi.mock('../core/Visualizer', () => ({
@@ -23,7 +24,7 @@ vi.mock('../core/Visualizer', () => ({
       return 'webgpu' as const;
     }
 
-    public async loadScene() {}
+    public loadScene(scene: unknown) { return controllerState.loadScene(scene); }
     public setModelTransform(id: string, transform: unknown) {
       return controllerState.setModelTransform(id, transform);
     }
@@ -52,6 +53,8 @@ describe('React WebGpuVisualizer lifecycle', () => {
     controllerState.disposeCount = 0;
     controllerState.setModelTransform.mockClear();
     controllerState.setRenderingPaused.mockClear();
+    controllerState.loadScene.mockReset();
+    controllerState.loadScene.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -104,6 +107,25 @@ describe('React WebGpuVisualizer lifecycle', () => {
 
     ref.current?.setRenderingPaused(true);
     expect(controllerState.setRenderingPaused).toHaveBeenCalledWith(true);
+
+    await act(async () => root.unmount());
+  });
+
+  it('clears a scene loading error after a later scene succeeds', async () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const failedScene = { models: [{ ...scene.models[0], id: 'failed' }] };
+    const recoveredScene = { models: [{ ...scene.models[0], id: 'recovered' }] };
+
+    await act(async () => root.render(<WebGpuVisualizer scene={scene} />));
+    controllerState.loadScene.mockRejectedValueOnce(new Error('Missing material texture'));
+    await act(async () => root.render(<WebGpuVisualizer scene={failedScene} />));
+    expect(container.textContent).toContain('Missing material texture');
+
+    await act(async () => root.render(<WebGpuVisualizer scene={recoveredScene} />));
+    expect(container.textContent).not.toContain('Missing material texture');
+    expect(container.querySelector('.wgv-root')?.getAttribute('data-renderer')).toBe('webgpu');
 
     await act(async () => root.unmount());
   });

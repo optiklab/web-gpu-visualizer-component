@@ -68,6 +68,7 @@ export const WebGpuVisualizer = forwardRef<WebGpuVisualizerHandle, WebGpuVisuali
     const loadedSceneRef = useRef<SceneDefinition | null>(null);
     const callbacksRef = useRef({ onReady, onRendererChange, onFallback, onError });
     const [status, setStatus] = useState<'loading' | RendererKind | 'error'>('loading');
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     sceneRef.current = scene;
     callbacksRef.current = { onReady, onRendererChange, onFallback, onError };
@@ -114,12 +115,14 @@ export const WebGpuVisualizer = forwardRef<WebGpuVisualizerHandle, WebGpuVisuali
       void controller.initialize()
         .then(kind => {
           if (!active) return;
+          setErrorMessage(null);
           setStatus(kind);
           callbacksRef.current.onReady?.(kind);
         })
         .catch(value => {
           if (!active) return;
           const error = value instanceof Error ? value : new Error(String(value));
+          setErrorMessage(error.message);
           setStatus('error');
           callbacksRef.current.onError?.(error);
         });
@@ -134,11 +137,22 @@ export const WebGpuVisualizer = forwardRef<WebGpuVisualizerHandle, WebGpuVisuali
     useEffect(() => {
       if (!controllerRef.current || scene === loadedSceneRef.current) return;
       loadedSceneRef.current = scene;
-      void controllerRef.current.loadScene(scene).catch(value => {
-        const error = value instanceof Error ? value : new Error(String(value));
-        setStatus('error');
-        callbacksRef.current.onError?.(error);
-      });
+      setErrorMessage(null);
+      setStatus('loading');
+      void controllerRef.current.loadScene(scene)
+        .then(() => {
+          const rendererKind = controllerRef.current?.getRendererKind();
+          if (rendererKind) {
+            setErrorMessage(null);
+            setStatus(rendererKind);
+          }
+        })
+        .catch(value => {
+          const error = value instanceof Error ? value : new Error(String(value));
+          setErrorMessage(error.message);
+          setStatus('error');
+          callbacksRef.current.onError?.(error);
+        });
     }, [scene]);
 
     useEffect(() => {
@@ -153,7 +167,7 @@ export const WebGpuVisualizer = forwardRef<WebGpuVisualizerHandle, WebGpuVisuali
         <canvas ref={canvasRef} className={mergedCanvasClassName} aria-label="3D model visualizer" />
         {showStatus && status === 'loading' && <div className="wgv-status">{loadingLabel}</div>}
         {showStatus && status === 'webcpu' && <div className="wgv-badge">CPU fallback</div>}
-        {showStatus && status === 'error' && <div className="wgv-status wgv-status-error">Unable to start visualizer</div>}
+        {showStatus && status === 'error' && <div className="wgv-status wgv-status-error">{errorMessage ?? 'Unable to start visualizer'}</div>}
       </div>
     );
   },

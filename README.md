@@ -50,6 +50,37 @@ export function ProductViewer() {
 
 Each model accepts either `objUrl` or `objText`, plus an optional `textureUrl`, `translation`, `rotation`, and `scale`. Scene and asset URLs remain owned and hosted by the consuming application.
 
+For OBJ files that use multiple materials, provide an MTL source and its diffuse textures:
+
+```tsx
+const scene = {
+  models: [{
+    id: 'ship',
+    objUrl: '/models/ship.obj',
+    mtlUrl: '/models/ship.mtl',
+    textureUrl: '/models/fallback.png',
+  }],
+};
+```
+
+Relative `map_Kd` paths in a hosted MTL file resolve relative to `mtlUrl`. For local files, pass the MTL text and map each uploaded filename to its blob URL:
+
+```tsx
+const scene = {
+  models: [{
+    id: 'local-ship',
+    objText,
+    mtlText,
+    textureUrls: {
+      'hull.png': hullBlobUrl,
+      'glass.jpg': glassBlobUrl,
+    },
+  }],
+};
+```
+
+`textureUrls` first matches the complete `map_Kd` path, then its basename, without requiring matching letter case. It also recognizes a unique exporter-added numeric suffix, such as `Metal0_2.jpg` referring to an uploaded `Metal0.jpg`. `textureUrl` remains the fallback for faces without a mapped diffuse texture. Browser-decodable PNG, JPEG, and WebP textures are recommended; TIFF is not supported.
+
 ### Props
 
 | Prop | Default | Purpose |
@@ -131,9 +162,9 @@ WebGPU availability depends on the browser, operating system, graphics driver, s
 
 The React module does not access browser globals during import or render. In Next.js and similar frameworks, render the component in a client component because initialization requires a canvas. Asset URLs should be absolute or served from the application's public directory.
 
-## OBJ Support
+## OBJ and MTL Support
 
-The parser supports positions, texture coordinates, triangle faces, polygon fan triangulation, positive indices, and negative relative indices. Normals and material (`.mtl`) files are not currently interpreted. Use one texture image per model.
+The OBJ parser supports positions, texture coordinates, triangle faces, polygon fan triangulation, positive indices, negative relative indices, and `usemtl` assignments. The MTL parser supports `newmtl` and diffuse `map_Kd` textures, including common map options. Other material properties such as colors, opacity, bump maps, and specular maps are not currently interpreted.
 
 ## Development
 

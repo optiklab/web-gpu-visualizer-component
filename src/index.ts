@@ -1,6 +1,7 @@
 export { WebGpuVisualizer } from './core/Visualizer';
 export { Camera } from './core/Camera';
 export { Mesh, type Face } from './core/Mesh';
+export { parseMtl, type MtlMaterial } from './core/Mtl';
 export { Texture } from './core/Texture';
 export { Mat4 } from './core/math/Matrix';
 export { Vec2, Vec3, Vec4 } from './core/math/Vector';

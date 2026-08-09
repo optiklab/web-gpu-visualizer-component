@@ -1,7 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Mat4 } from '../../core/math/Matrix';
-import type { GpuMesh } from './WebGpuRenderer';
-import { WebGpuRenderer } from './WebGpuRenderer';
+import { fitTextureDimensions, type GpuMesh, WebGpuRenderer } from './WebGpuRenderer';
+
+describe('fitTextureDimensions', () => {
+  it('preserves aspect ratio while fitting an oversized texture to the device limit', () => {
+    expect(fitTextureDimensions(11105, 57, 8192)).toEqual({ width: 8192, height: 42 });
+  });
+
+  it('keeps textures that already fit unchanged', () => {
+    expect(fitTextureDimensions(1024, 512, 8192)).toEqual({ width: 1024, height: 512 });
+  });
+});
 
 describe('WebGpuRenderer depth texture lifecycle', () => {
   beforeEach(() => {

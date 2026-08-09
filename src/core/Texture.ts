@@ -61,7 +61,7 @@ export class Texture {
             // Handler for errors
             img.onerror = (e) => {
                 console.error(`Failed to load texture: ${url}`, e);
-                reject(e);
+                reject(new Error('The texture image could not be decoded by this browser.'));
             };
 
             // Start loading
