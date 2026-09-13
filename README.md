@@ -4,7 +4,7 @@
 [![npm](https://img.shields.io/npm/v/@optiklab/web-gpu-visualizer-component)](https://www.npmjs.com/package/@optiklab/web-gpu-visualizer-component)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-A dependency-light OBJ visualizer that prefers WebGPU and automatically falls back to a Canvas 2D software renderer. It provides React bindings and a framework-independent controller, with wireframe, filled, and textured rendering.
+A dependency-light OBJ, glTF 2.0, and GLB visualizer that prefers WebGPU and automatically falls back to a Canvas 2D software renderer. It provides React bindings and a framework-independent controller, with wireframe, filled, and textured rendering.
 
 Component is built from the the [previously successful experimental project](https://github.com/optiklab/web-gpu-visualizer) converting from C++ SDL functionality to TypeScript for renderring using Web GPU  and CPU (as a fallback).
 
@@ -48,7 +48,24 @@ export function ProductViewer() {
 }
 ```
 
-Each model accepts either `objUrl` or `objText`, plus an optional `textureUrl`, `translation`, `rotation`, and `scale`. Scene and asset URLs remain owned and hosted by the consuming application.
+Each model accepts exactly one source: `objUrl`, `objText`, `gltfUrl`, `gltfText`, `glbUrl`, or `glbData`. All formats also accept optional `translation`, `rotation`, and `scale` values. Scene and asset URLs remain owned and hosted by the consuming application.
+
+Hosted glTF and GLB files resolve external buffers and images relative to their model URL. For a local `.gltf` upload, map each selected sidecar filename to its blob URL:
+
+```tsx
+const scene = {
+  models: [{
+    id: 'local-product',
+    gltfText,
+    resourceUrls: {
+      'product.bin': binaryBlobUrl,
+      'albedo.png': albedoBlobUrl,
+    },
+  }],
+};
+```
+
+Local GLB files can be passed directly as `glbData: await file.arrayBuffer()`.
 
 For OBJ files that use multiple materials, provide an MTL source and its diffuse textures:
 
@@ -162,9 +179,11 @@ WebGPU availability depends on the browser, operating system, graphics driver, s
 
 The React module does not access browser globals during import or render. In Next.js and similar frameworks, render the component in a client component because initialization requires a canvas. Asset URLs should be absolute or served from the application's public directory.
 
-## OBJ and MTL Support
+## Model Format Support
 
 The OBJ parser supports positions, texture coordinates, triangle faces, polygon fan triangulation, positive indices, negative relative indices, and `usemtl` assignments. The MTL parser supports `newmtl` and diffuse `map_Kd` textures, including common map options. Other material properties such as colors, opacity, bump maps, and specular maps are not currently interpreted.
+
+The glTF 2.0 loader supports `.gltf` JSON and binary `.glb` assets, embedded or external buffers and images, indexed and non-indexed triangle primitives, node hierarchies and TRS/matrix transforms, `POSITION`, `TEXCOORD_0`, and PBR base-color textures. Sparse accessors, non-triangle primitive modes, animation, skinning, morph targets, and compressed mesh extensions such as Draco or Meshopt are rejected with an explicit error.
 
 ## Development
 

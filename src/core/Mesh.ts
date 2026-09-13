@@ -12,7 +12,11 @@ export interface Face {
     c_uv: Vec2; // Texture coordinate for the third vertex // Fixed typo: c_uv
 
     color: number; // 32-bit integer color of the face (ARGB)
+    a_normal?: Vec3;
+    b_normal?: Vec3;
+    c_normal?: Vec3;
     materialName?: string;
+    transparent?: boolean;
 }
 
 // Class representing a 3D model (mesh)

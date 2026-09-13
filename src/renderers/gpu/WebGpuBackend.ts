@@ -11,6 +11,12 @@ interface GpuSceneModel {
   gpuMeshes: GpuMesh[];
 }
 
+interface MaterialBatch {
+  texture: Texture;
+  faces: Face[];
+  transparent: boolean;
+}
+
 export class WebGpuBackend implements RendererBackend {
   public readonly kind = 'webgpu' as const;
   private readonly renderer: WebGpuRenderer;
@@ -30,10 +36,10 @@ export class WebGpuBackend implements RendererBackend {
       for (const source of models) {
         const batches = this.createMaterialBatches(source);
         const gpuMeshes: GpuMesh[] = [];
-        for (const [texture, faces] of batches) {
+        for (const { texture, faces, transparent } of batches) {
           const textureCanvas = texture.sourceCanvas;
           if (!textureCanvas) throw new Error(`Model ${source.id} has no decoded texture source.`);
-          const gpuMesh = this.renderer.updateMesh(this.flattenVertices(source, faces), textureCanvas);
+          const gpuMesh = this.renderer.updateMesh(this.flattenVertices(source, faces), textureCanvas, transparent);
           if (!gpuMesh) throw new Error(`Could not upload model ${source.id} to WebGPU.`);
           gpuMeshes.push(gpuMesh);
         }
@@ -104,17 +110,21 @@ export class WebGpuBackend implements RendererBackend {
     this.renderer.dispose();
   }
 
-  private createMaterialBatches(source: LoadedModel): Map<Texture, Face[]> {
+  private createMaterialBatches(source: LoadedModel): MaterialBatch[] {
     const fallback = source.mesh.texture;
     if (!fallback) throw new Error(`Model ${source.id} has no decoded fallback texture.`);
-    const batches = new Map<Texture, Face[]>();
+    const batches: MaterialBatch[] = [];
     for (const face of source.mesh.faces) {
       const texture = face.materialName
         ? source.mesh.materialTextures.get(face.materialName) ?? fallback
         : fallback;
-      const faces = batches.get(texture) ?? [];
-      faces.push(face);
-      batches.set(texture, faces);
+      const transparent = face.transparent ?? false;
+      let batch = batches.find(candidate => candidate.texture === texture && candidate.transparent === transparent);
+      if (!batch) {
+        batch = { texture, faces: [], transparent };
+        batches.push(batch);
+      }
+      batch.faces.push(face);
     }
     return batches;
   }
@@ -128,10 +138,23 @@ export class WebGpuBackend implements RendererBackend {
         source.mesh.vertices[face.c - 1],
       ];
       const uvs = [face.a_uv, face.b_uv, face.c_uv];
+      const normals = [face.a_normal, face.b_normal, face.c_normal];
+      const color = [
+        (face.color & 0xff) / 255,
+        ((face.color >>> 8) & 0xff) / 255,
+        ((face.color >>> 16) & 0xff) / 255,
+        ((face.color >>> 24) & 0xff) / 255,
+      ];
       for (let index = 0; index < 3; index++) {
         const vertex = vertices[index];
         const uv = uvs[index];
-        values.push(vertex.x, vertex.y, vertex.z, uv.x, 1 - uv.y);
+        const normal = normals[index];
+        values.push(
+          vertex.x, vertex.y, vertex.z,
+          uv.x, 1 - uv.y,
+          normal?.x ?? 0, normal?.y ?? 0, normal?.z ?? 0,
+          ...color,
+        );
       }
     }
     return new Float32Array(values);

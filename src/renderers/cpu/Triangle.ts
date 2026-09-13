@@ -169,7 +169,9 @@ export class Rasterizer {
     // ========================================================================
     static drawTriangleTexel(display: Display, x: number, y: number, texture: Texture,
         pointA: Vec4, pointB: Vec4, pointC: Vec4,
-        uA: number, vA: number, uB: number, vB: number, uC: number, vC: number) {
+        uA: number, vA: number, uB: number, vB: number, uC: number, vC: number,
+        tint: number,
+        transparent = false) {
 
         // C++: vec2_t p = { x, y };
         const p = new Vec2(x, y);
@@ -225,11 +227,15 @@ export class Rasterizer {
             let color = 0xFFFF00FF; // Fallback magenta
             const index = texY * texWidth + texX;
             if (index >= 0 && index < texture.data.length) {
-                color = texture.data[index];
+                color = Rasterizer.multiplyColor(texture.data[index], tint);
             }
-            display.drawPixel(x, y, color);
-            // C++: update_zbuffer_at(x, y, interpolated_reciprocal_w);
-            display.updateZBufferAt(x, y, interpolatedReciprocalW);
+            if (transparent) {
+                display.blendPixel(x, y, color);
+            } else {
+                display.drawPixel(x, y, color);
+                // C++: update_zbuffer_at(x, y, interpolated_reciprocal_w);
+                display.updateZBufferAt(x, y, interpolatedReciprocalW);
+            }
         }
     }
 
@@ -363,7 +369,9 @@ export class Rasterizer {
         x0: number, y0: number, z0: number, w0: number, u0: number, v0: number,
         x1: number, y1: number, z1: number, w1: number, u1: number, v1: number,
         x2: number, y2: number, z2: number, w2: number, u2: number, v2: number,
-        texture: Texture) {
+        texture: Texture,
+        tint: number = 0xffffffff,
+        transparent = false) {
 
         // C++ receives screen coordinates as int parameters.
         x0 = Math.trunc(x0); y0 = Math.trunc(y0);
@@ -418,7 +426,7 @@ export class Rasterizer {
                 // C++: for (int x = x_start; x < x_end; x++)
                 for (let x = Math.floor(xStart); x < Math.floor(xEnd); x++) {
                     // C++: draw_triangle_texel(x, y, texture, point_a, point_b, point_c, a_uv, b_uv, c_uv);
-                    Rasterizer.drawTriangleTexel(display, x, y, texture, pointA, pointB, pointC, u0, v0, u1, v1, u2, v2);
+                    Rasterizer.drawTriangleTexel(display, x, y, texture, pointA, pointB, pointC, u0, v0, u1, v1, u2, v2, tint, transparent);
                 }
             }
         }
@@ -446,9 +454,21 @@ export class Rasterizer {
                 // C++: for (int x = x_start; x < x_end; x++)
                 for (let x = Math.floor(xStart); x < Math.floor(xEnd); x++) {
                     // C++: draw_triangle_texel(x, y, texture, point_a, point_b, point_c, a_uv, b_uv, c_uv);
-                    Rasterizer.drawTriangleTexel(display, x, y, texture, pointA, pointB, pointC, u0, v0, u1, v1, u2, v2);
+                    Rasterizer.drawTriangleTexel(display, x, y, texture, pointA, pointB, pointC, u0, v0, u1, v1, u2, v2, tint, transparent);
                 }
             }
         }
+    }
+
+    private static multiplyColor(color: number, tint: number): number {
+        const channel = (shift: number) => Math.round(
+            ((color >>> shift) & 0xff) * ((tint >>> shift) & 0xff) / 255,
+        );
+        return (
+            (channel(24) << 24)
+            | (channel(16) << 16)
+            | (channel(8) << 8)
+            | channel(0)
+        ) >>> 0;
     }
 }

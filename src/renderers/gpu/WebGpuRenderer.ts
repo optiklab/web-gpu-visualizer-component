@@ -18,6 +18,7 @@ export interface GpuMesh {
     uniformBuffer: GPUBuffer;
     texture: GPUTexture;
     bindGroup: GPUBindGroup;
+    transparent: boolean;
 }
 
 export interface RenderItem {
@@ -58,6 +59,7 @@ export class WebGpuRenderer {
     // ========================================================================
 
     public pipeline: GPURenderPipeline | null = null; // The render pipeline (shaders + state)
+    private transparentPipeline: GPURenderPipeline | null = null;
     private filledPipeline: GPURenderPipeline | null = null;
     private wirePipeline: GPURenderPipeline | null = null;
     private renderMode: RenderMode = 'textured';
@@ -183,7 +185,7 @@ export class WebGpuRenderer {
         // ====================================================================
         // The complete pipeline configuration: shaders, vertex format, render state
 
-        this.pipeline = this.device.createRenderPipeline({
+        const createTexturedPipeline = (depthWriteEnabled: boolean) => this.device!.createRenderPipeline({
             layout: pipelineLayout, // Use our defined layout
 
             // Vertex Stage Configuration
@@ -193,7 +195,7 @@ export class WebGpuRenderer {
                 buffers: [
                     {
                         // Vertex buffer layout: how to read vertex data
-                        arrayStride: 5 * 4, // Each vertex is 5 floats × 4 bytes = 20 bytes
+                        arrayStride: 12 * 4,
                         // Format: [x, y, z, u, v]
                         attributes: [
                             {
@@ -205,7 +207,9 @@ export class WebGpuRenderer {
                                 shaderLocation: 1,     // @location(1) in shader = uv
                                 offset: 3 * 4,         // UV starts after 3 floats (12 bytes)
                                 format: 'float32x2'    // 2 floats for u, v
-                            }
+                            },
+                            { shaderLocation: 2, offset: 5 * 4, format: 'float32x3' },
+                            { shaderLocation: 3, offset: 8 * 4, format: 'float32x4' }
                         ]
                     }
                 ]
@@ -244,11 +248,13 @@ export class WebGpuRenderer {
 
             // Depth/Stencil Configuration (for proper 3D depth sorting)
             depthStencil: {
-                depthWriteEnabled: true,   // Write to depth buffer
+                depthWriteEnabled,
                 depthCompare: 'less',      // Pass if new depth < existing depth
                 format: 'depth24plus',     // 24-bit depth buffer format
             }
         });
+        this.pipeline = createTexturedPipeline(true);
+        this.transparentPipeline = createTexturedPipeline(false);
 
         this.filledPipeline = this.device.createRenderPipeline({
             layout: pipelineLayout,
@@ -256,10 +262,12 @@ export class WebGpuRenderer {
                 module: shaderModule,
                 entryPoint: 'vs_main',
                 buffers: [{
-                    arrayStride: 5 * 4,
+                    arrayStride: 12 * 4,
                     attributes: [
                         { shaderLocation: 0, offset: 0, format: 'float32x3' },
-                        { shaderLocation: 1, offset: 3 * 4, format: 'float32x2' }
+                        { shaderLocation: 1, offset: 3 * 4, format: 'float32x2' },
+                        { shaderLocation: 2, offset: 5 * 4, format: 'float32x3' },
+                        { shaderLocation: 3, offset: 8 * 4, format: 'float32x4' }
                     ]
                 }]
             },
@@ -282,10 +290,12 @@ export class WebGpuRenderer {
                 module: shaderModule,
                 entryPoint: 'vs_main',
                 buffers: [{
-                    arrayStride: 5 * 4,
+                    arrayStride: 12 * 4,
                     attributes: [
                         { shaderLocation: 0, offset: 0, format: 'float32x3' },
-                        { shaderLocation: 1, offset: 3 * 4, format: 'float32x2' }
+                        { shaderLocation: 1, offset: 3 * 4, format: 'float32x2' },
+                        { shaderLocation: 2, offset: 5 * 4, format: 'float32x3' },
+                        { shaderLocation: 3, offset: 8 * 4, format: 'float32x4' }
                     ]
                 }]
             },
@@ -338,7 +348,11 @@ export class WebGpuRenderer {
      * @param vertices - Float32Array of vertex data [x, y, z, u, v, ...]
      * @param textureImage - The texture image (ImageBitmap or HTMLCanvasElement)
      */
-    public updateMesh(vertices: Float32Array, textureImage: ImageBitmap | HTMLCanvasElement): GpuMesh | null {
+    public updateMesh(
+        vertices: Float32Array,
+        textureImage: ImageBitmap | HTMLCanvasElement,
+        transparent = false,
+    ): GpuMesh | null {
         // Guard: all required resources must be initialized
         if (!this.device || !this.pipeline || !this.sampler) return null;
         if (vertices.length === 0) throw new Error('Cannot upload an empty mesh.');
@@ -350,7 +364,7 @@ export class WebGpuRenderer {
         // ====================================================================
 
         // Calculate number of vertices (each vertex has 5 floats: x,y,z,u,v)
-        const vertexCount = vertices.length / 5;
+        const vertexCount = vertices.length / 12;
 
         // Create GPU buffer for vertices
         const vertexBuffer = this.device.createBuffer({
@@ -367,21 +381,21 @@ export class WebGpuRenderer {
 
         const wireVertices: number[] = [];
         const appendVertex = (offset: number) => {
-            for (let component = 0; component < 5; component++) {
+            for (let component = 0; component < 12; component++) {
                 wireVertices.push(vertices[offset + component]);
             }
         };
         for (let triangle = 0; triangle < vertexCount; triangle += 3) {
-            const a = triangle * 5;
-            const b = (triangle + 1) * 5;
-            const c = (triangle + 2) * 5;
+            const a = triangle * 12;
+            const b = (triangle + 1) * 12;
+            const c = (triangle + 2) * 12;
             appendVertex(a); appendVertex(b);
             appendVertex(b); appendVertex(c);
             appendVertex(c); appendVertex(a);
         }
 
         const wireData = new Float32Array(wireVertices);
-        const wireVertexCount = wireData.length / 5;
+        const wireVertexCount = wireData.length / 12;
         const wireVertexBuffer = this.device.createBuffer({
             size: wireData.byteLength,
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
@@ -447,6 +461,7 @@ export class WebGpuRenderer {
             uniformBuffer,
             texture,
             bindGroup,
+            transparent,
         };
     }
 
@@ -574,7 +589,19 @@ export class WebGpuRenderer {
         }
 
         passEncoder.setPipeline(activePipeline);
-        for (const item of items) {
+        const orderedItems = this.renderMode === 'textured'
+            ? [...items.filter(item => !item.mesh.transparent), ...items.filter(item => item.mesh.transparent)]
+            : items;
+        let currentPipeline = activePipeline;
+        for (const item of orderedItems) {
+            const itemPipeline = this.renderMode === 'textured' && item.mesh.transparent
+                ? this.transparentPipeline
+                : activePipeline;
+            if (!itemPipeline) continue;
+            if (itemPipeline !== currentPipeline) {
+                passEncoder.setPipeline(itemPipeline);
+                currentPipeline = itemPipeline;
+            }
             const vertexBuffer = this.renderMode === 'wireframe'
                 ? item.mesh.wireVertexBuffer
                 : item.mesh.vertexBuffer;

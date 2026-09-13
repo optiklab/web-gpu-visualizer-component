@@ -35,6 +35,8 @@ struct Uniforms {
 struct VertexInput {
     @location(0) position: vec3<f32>,  // 3D position (x, y, z) in object space
     @location(1) uv: vec2<f32>,        // Texture coordinates (u, v)
+    @location(2) normal: vec3<f32>,
+    @location(3) color: vec4<f32>,
 };
 
 // ============================================================================
@@ -46,6 +48,8 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) Position: vec4<f32>,  // Required: clip-space position for rasterizer
     @location(0) uv: vec2<f32>,              // Interpolated texture coordinates
+    @location(1) normal: vec3<f32>,
+    @location(2) color: vec4<f32>,
 };
 
 // ============================================================================
@@ -76,6 +80,8 @@ fn vs_main(input: VertexInput) -> VertexOutput {
     // Pass through the UV coordinates unchanged
     // These will be interpolated across the triangle by the rasterizer
     output.uv = input.uv;
+    output.normal = input.normal;
+    output.color = input.color;
     
     return output;
 }
@@ -100,7 +106,7 @@ fn vs_main(input: VertexInput) -> VertexOutput {
 // The input UV coordinates have been interpolated from the triangle vertices.
 
 @fragment
-fn fs_main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     // Sample the texture at the interpolated UV coordinates
     // 
     // textureSample() performs:
@@ -115,7 +121,14 @@ fn fs_main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
     // OBJ files typically use bottom-left origin for UVs, so we flip V
     // in the TypeScript code when building the vertex buffer.
     
-    return textureSample(myTexture, mySampler, uv);
+    let normalLength = length(input.normal);
+    var light = 1.0;
+    if (normalLength > 0.001) {
+        let diffuse = abs(dot(normalize(input.normal), normalize(vec3<f32>(0.35, 0.8, -0.48))));
+        light = 0.3 + diffuse * 0.7;
+    }
+    let baseColor = textureSample(myTexture, mySampler, input.uv) * input.color;
+    return vec4<f32>(baseColor.rgb * light, baseColor.a);
     
     // Alternative: Return a solid color for debugging
     // return vec4<f32>(uv.x, uv.y, 0.5, 1.0);  // Visualize UV coordinates

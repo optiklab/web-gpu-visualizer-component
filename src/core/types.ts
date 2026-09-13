@@ -20,6 +20,11 @@ export interface ModelSource extends ModelTransform {
   id?: string;
   objUrl?: string;
   objText?: string;
+  gltfUrl?: string;
+  gltfText?: string;
+  glbUrl?: string;
+  glbData?: ArrayBuffer;
+  resourceUrls?: Record<string, string>;
   textureUrl?: string;
   mtlUrl?: string;
   mtlText?: string;

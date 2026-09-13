@@ -1,4 +1,5 @@
 import { Mesh } from './Mesh';
+import { decodeGlb, parseGltf } from './Gltf';
 import { parseMtl } from './Mtl';
 import { Texture } from './Texture';
 import { Vec3 } from './math/Vector';
@@ -20,19 +21,55 @@ export async function loadSceneDefinition(
 }
 
 async function loadModel(source: ModelSource, index: number, signal?: AbortSignal): Promise<LoadedModel> {
-  if (!source.objUrl && source.objText === undefined) {
-    throw new Error(`Model ${source.id ?? index} requires objUrl or objText.`);
+  const sourceCount = [source.objUrl, source.objText, source.gltfUrl, source.gltfText, source.glbUrl, source.glbData]
+    .filter(value => value !== undefined).length;
+  if (sourceCount === 0) {
+    throw new Error(`Model ${source.id ?? index} requires objUrl or objText, gltfUrl or gltfText, or glbUrl or glbData.`);
+  }
+  if (sourceCount > 1) {
+    throw new Error(`Model ${source.id ?? index} requires exactly one OBJ, glTF, or GLB source.`);
   }
 
-  const mesh = new Mesh();
-  if (source.objText !== undefined) {
-    mesh.parseObj(source.objText);
-  } else {
-    const response = await fetch(source.objUrl!, { signal });
-    if (!response.ok) {
-      throw new Error(`Failed to load OBJ (${response.status}): ${source.objUrl}`);
+  let mesh: Mesh;
+  if (source.gltfUrl || source.gltfText !== undefined || source.glbUrl || source.glbData) {
+    let json: string;
+    let binaryChunk: ArrayBuffer | undefined;
+    let baseUrl: string | undefined;
+    if (source.glbData) {
+      ({ json, binaryChunk } = decodeGlb(source.glbData));
+    } else if (source.glbUrl) {
+      const response = await fetch(source.glbUrl, { signal });
+      if (!response.ok) throw new Error(`Failed to load GLB (${response.status}): ${source.glbUrl}`);
+      ({ json, binaryChunk } = decodeGlb(await response.arrayBuffer()));
+      baseUrl = source.glbUrl;
+    } else if (source.gltfText !== undefined) {
+      json = source.gltfText;
+    } else {
+      const response = await fetch(source.gltfUrl!, { signal });
+      if (!response.ok) throw new Error(`Failed to load glTF (${response.status}): ${source.gltfUrl}`);
+      json = await response.text();
+      baseUrl = source.gltfUrl;
     }
-    mesh.parseObj(await response.text());
+    const parsed = await parseGltf({ json, binaryChunk, baseUrl, resourceUrls: source.resourceUrls }, signal);
+    mesh = parsed.mesh;
+    try {
+      for (const [material, textureUrl] of parsed.materialTextureUrls) {
+        const texture = new Texture();
+        await texture.load(textureUrl);
+        mesh.materialTextures.set(material, texture);
+      }
+    } finally {
+      parsed.temporaryUrls.forEach(url => URL.revokeObjectURL(url));
+    }
+  } else {
+    mesh = new Mesh();
+    if (source.objText !== undefined) {
+      mesh.parseObj(source.objText);
+    } else {
+      const response = await fetch(source.objUrl!, { signal });
+      if (!response.ok) throw new Error(`Failed to load OBJ (${response.status}): ${source.objUrl}`);
+      mesh.parseObj(await response.text());
+    }
   }
 
   if (signal?.aborted) throw new DOMException('Scene load aborted', 'AbortError');

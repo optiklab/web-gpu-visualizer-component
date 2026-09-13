@@ -23,6 +23,30 @@ describe('loadSceneDefinition', () => {
     );
   });
 
+  it('loads an embedded glTF 2.0 triangle through the shared scene path', async () => {
+    vi.spyOn(Texture.prototype, 'load').mockImplementation(async function load() {
+      this.sourceCanvas = {} as HTMLCanvasElement;
+    });
+    const bytes = new Uint8Array(36);
+    new Float32Array(bytes.buffer).set([0, 0, 0, 1, 0, 0, 0, 1, 0]);
+    const encoded = btoa(String.fromCharCode(...bytes));
+    const gltfText = JSON.stringify({
+      asset: { version: '2.0' },
+      scenes: [{ nodes: [0] }],
+      nodes: [{ mesh: 0 }],
+      meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
+      accessors: [{ bufferView: 0, componentType: 5126, count: 3, type: 'VEC3' }],
+      bufferViews: [{ buffer: 0, byteLength: 36 }],
+      buffers: [{ uri: `data:application/octet-stream;base64,${encoded}`, byteLength: 36 }],
+    });
+
+    const [model] = await loadSceneDefinition({ models: [{ id: 'gltf', gltfText, textureUrl: 'blob:fallback' }] });
+
+    expect(model.id).toBe('gltf');
+    expect(model.mesh.faces).toHaveLength(1);
+    expect(model.mesh.translation).toMatchObject({ x: 0, y: 0, z: 5 });
+  });
+
   it('loads MTL diffuse textures by uploaded filename and assigns them to materials', async () => {
     const loadedUrls: string[] = [];
     vi.spyOn(Texture.prototype, 'load').mockImplementation(async function load(url) {

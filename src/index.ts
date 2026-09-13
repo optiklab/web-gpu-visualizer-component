@@ -6,6 +6,7 @@ export { Texture } from './core/Texture';
 export { Mat4 } from './core/math/Matrix';
 export { Vec2, Vec3, Vec4 } from './core/math/Vector';
 export { loadSceneDefinition } from './core/sceneLoader';
+export { decodeGlb, parseGltf, type GltfSource, type ParsedGltf } from './core/Gltf';
 export type {
   LoadedModel,
   ModelSource,

@@ -46,10 +46,12 @@ export class WebCpuBackend implements RendererBackend {
     const viewMatrix = Mat4.lookAt(camera.position, target, new Vec3(0, 1, 0));
     let triangleCount = 0;
 
+    for (const transparentPass of [false, true]) {
     for (const { mesh } of this.models) {
       const worldMatrix = this.createWorldMatrix(mesh.scale, mesh.rotation, mesh.translation);
 
       for (const face of mesh.faces) {
+        if ((face.transparent ?? false) !== transparentPass) continue;
         const transformed = [face.a, face.b, face.c].map(index => {
           let point = Vec4.fromVec3(mesh.vertices[index - 1]);
           point = Mat4.mulVec4(worldMatrix, point);
@@ -94,12 +96,17 @@ export class WebCpuBackend implements RendererBackend {
             const texture = face.materialName
               ? mesh.materialTextures.get(face.materialName) ?? mesh.texture
               : mesh.texture;
+            const materialLight = face.a_normal
+              ? 0.3 + Math.abs(Vec3.dot(normal, this.light.getDirection())) * 0.7
+              : 1;
             Rasterizer.drawTexturedTriangle(
               this.display,
               points[0].x, points[0].y, points[0].z, points[0].w, triangle.texcoords[0].x, triangle.texcoords[0].y,
               points[1].x, points[1].y, points[1].z, points[1].w, triangle.texcoords[1].x, triangle.texcoords[1].y,
               points[2].x, points[2].y, points[2].z, points[2].w, triangle.texcoords[2].x, triangle.texcoords[2].y,
               texture,
+              Light.applyIntensity(face.color, materialLight),
+              transparentPass,
             );
           } else {
             Rasterizer.drawTriangle(
@@ -112,6 +119,7 @@ export class WebCpuBackend implements RendererBackend {
           }
         }
       }
+    }
     }
 
     this.display.renderColorBuffer();

@@ -103,6 +103,25 @@ export class Display {
         this.colorBuffer[y * this.width + x] = color;
     }
 
+    public blendPixel(x: number, y: number, color: number) {
+        if (x < 0 || x >= this.width || y < 0 || y >= this.height) return;
+        const index = y * this.width + x;
+        const destination = this.colorBuffer[index];
+        const sourceAlpha = ((color >>> 24) & 0xff) / 255;
+        const destinationAlpha = ((destination >>> 24) & 0xff) / 255;
+        const outputAlpha = sourceAlpha + destinationAlpha * (1 - sourceAlpha);
+        const channel = (shift: number) => outputAlpha === 0 ? 0 : Math.round(
+            (((color >>> shift) & 0xff) * sourceAlpha
+                + ((destination >>> shift) & 0xff) * destinationAlpha * (1 - sourceAlpha)) / outputAlpha,
+        );
+        this.colorBuffer[index] = (
+            (Math.round(outputAlpha * 255) << 24)
+            | (channel(16) << 16)
+            | (channel(8) << 8)
+            | channel(0)
+        ) >>> 0;
+    }
+
     // C++: void draw_rect(int x, int y, int width, int height, uint32_t color)
     public drawRect(x: number, y: number, w: number, h: number, color: number) {
 

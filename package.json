@@ -1,7 +1,7 @@
 {
   "name": "@optiklab/web-gpu-visualizer-component",
   "version": "0.1.6",
-  "description": "WebGPU-first 3D OBJ visualizer with a Canvas CPU fallback and React bindings.",
+  "description": "WebGPU-first OBJ, glTF 2.0, and GLB visualizer with a Canvas CPU fallback and React bindings.",
   "type": "module",
   "license": "Apache-2.0",
   "engines": {
@@ -22,6 +22,8 @@
     "canvas",
     "3d",
     "obj",
+    "gltf",
+    "glb",
     "visualizer"
   ],
   "files": [
